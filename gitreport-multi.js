@@ -36,7 +36,7 @@ async function generateStatsReport(repoPath, since, until) {
                 report[author] = {};
             }
             if (!report[author][month]) {
-                report[author][month] = { commits: 0, additions: 0, deletions: 0, messages: [] };
+                report[author][month] = { commits: 0, additions: 0, deletions: 0, messages: [], impactfulCommit: null };
             }
 
             report[author][month].commits += 1;
@@ -48,6 +48,18 @@ async function generateStatsReport(repoPath, since, until) {
                 currentCommit.deletions += deletions;
                 report[currentCommit.author][currentCommit.month].additions += additions;
                 report[currentCommit.author][currentCommit.month].deletions += deletions;
+
+                // Track the most impactful commit
+                if (!report[currentCommit.author][currentCommit.month].impactfulCommit ||
+                    (additions + deletions > report[currentCommit.author][currentCommit.month].impactfulCommit.additions +
+                        report[currentCommit.author][currentCommit.month].impactfulCommit.deletions)) {
+                    report[currentCommit.author][currentCommit.month].impactfulCommit = {
+                        message: currentCommit.message,
+                        date: currentCommit.date,
+                        additions: currentCommit.additions,
+                        deletions: currentCommit.deletions,
+                    };
+                }
             }
         }
     }
@@ -58,11 +70,11 @@ async function generateStatsReport(repoPath, since, until) {
 function calculateImpactScore(additions, deletions) {
     const netChange = additions - deletions;
     const totalChange = additions + deletions;
-    
+
     if (totalChange === 0) {
         return 50; // Neutral score if no changes were made
     }
-    
+
     const ratio = netChange / totalChange;
     return Math.min(Math.max((ratio + 1) * 50, 0), 100); // Score out of 100
 }
@@ -87,6 +99,7 @@ function calculatePerformanceMetrics(report) {
                 commits: monthData.commits,
                 additions: monthData.additions,
                 deletions: monthData.deletions,
+                impactfulCommit: monthData.impactfulCommit,
                 impactScore: calculateImpactScore(monthData.additions, monthData.deletions),
                 productivity: calculateProductivity(monthData.additions, monthData.deletions, monthData.commits)
             };
@@ -109,19 +122,39 @@ function getBestPerformers(metrics, topN = 5) {
             totalDeletions: data.totalDeletions,
             overallImpactScore: data.overallImpactScore,
             overallProductivity: data.overallProductivity,
-            combinedScore: combinedScore
+            combinedScore: combinedScore,
+            impactfulCommit: Object.values(data.months).reduce((best, month) => {
+                if (month.impactfulCommit) {
+                    return (!best || month.impactfulCommit.additions + month.impactfulCommit.deletions >
+                        best.additions + best.deletions) ? month.impactfulCommit : best;
+                }
+                return best;
+            }, null)
         };
     });
 
     return overallMetrics.sort((a, b) => b.combinedScore - a.combinedScore).slice(0, topN);
 }
 
-function generateHTMLReport(repoMetrics, monthYear) {
+function getCurrentMonthRange() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-indexed
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0); // Last day of the month
+    return {
+        since: start.toISOString().split('T')[0],
+        until: end.toISOString().split('T')[0],
+        monthYear: `${year}-${String(month + 1).padStart(2, '0')}` // Format as YYYY-MM
+    };
+}
+
+
+async function generateHTMLReport(repoMetrics, monthYear) {
     let html = `<html><head><title>Git Contribution Report - ${monthYear}</title></head><body>`;
     html += `<h1>Git Contribution Report (${monthYear})</h1>`;
 
     for (const repo in repoMetrics) {
-        html += `==========================================`
         html += `<h2>Project: ${repo}</h2>`; // Project name
 
         const metrics = repoMetrics[repo];
@@ -161,6 +194,10 @@ function generateHTMLReport(repoMetrics, monthYear) {
             <th>Overall Impact Score</th>
             <th>Overall Productivity</th>
             <th>Combined Score</th>
+            <th>Most Impactful Commit</th>
+            <th>Date</th>
+            <th>Additions</th>
+            <th>Deletions</th>
         </tr>`;
 
         bestPerformers.forEach(p => {
@@ -171,8 +208,16 @@ function generateHTMLReport(repoMetrics, monthYear) {
                 <td>${p.totalDeletions}</td>
                 <td>${p.overallImpactScore.toFixed(2)}</td>
                 <td>${p.overallProductivity.toFixed(2)}</td>
-                <td>${p.combinedScore.toFixed(2)}</td>
-            </tr>`;
+                <td>${p.combinedScore.toFixed(2)}</td>`;
+            if (p.impactfulCommit) {
+                html += `<td>${p.impactfulCommit.message}</td>
+                         <td>${p.impactfulCommit.date}</td>
+                         <td>${p.impactfulCommit.additions}</td>
+                         <td>${p.impactfulCommit.deletions}</td>`;
+            } else {
+                html += `<td colspan="4">N/A</td>`;
+            }
+            html += `</tr>`;
         });
 
         html += `</table>`;
@@ -186,18 +231,6 @@ function generateHTMLReport(repoMetrics, monthYear) {
     console.log(`HTML report generated for all repositories at ${filePath}`);
 }
 
-function getCurrentMonthRange() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth(); // 0-indexed
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0); // Last day of the month
-    return {
-        since: start.toISOString().split('T')[0],
-        until: end.toISOString().split('T')[0],
-        monthYear: `${year}-${String(month + 1).padStart(2, '0')}` // Format as YYYY-MM
-    };
-}
 
 async function main() {
     try {
@@ -230,7 +263,7 @@ async function main() {
 
         // Generate the report after processing all repositories
         console.log('Generating HTML report for all repositories...');
-        generateHTMLReport(allRepoMetrics, monthYear);
+        await generateHTMLReport(allRepoMetrics, monthYear);
         
         console.log('All reports generated successfully.');
     } catch (error) {
