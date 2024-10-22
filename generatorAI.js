@@ -1,11 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-const apiKeys = [
-    'AIzaSyDgeZ-JVfUuVouEoDv_FxlPfCuxz6LeVyw',
-    'AIzaSyDuMVRujmPygn0g1QxI-a8CUEZ9gu-Q778',
-    'AIzaSyCprWxBmsoxPDcA0OTsYGOOtYVd_51J5po',
-    'AIzaSyD-yA6Mg6tLYaRLFwmfis2g41-ONx-lSzc'
-];
+import { apiKeys } from './api_keys.js';
 
 let currentApiKeyIndex = 0;
 
