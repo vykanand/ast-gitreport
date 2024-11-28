@@ -280,7 +280,7 @@ function generateHTMLReport(authorReports) {
     `;
 
     // Save the HTML report to a file
-    fs.promises.writeFile('git_activity_report.html', htmlContent, 'utf8')
+    fs.promises.writeFile('branch_activity_report.html', htmlContent, 'utf8')
         .then(() => {
             console.log('HTML report generated successfully!');
         })
@@ -297,4 +297,4 @@ function formatTime(totalMinutes) {
 }
 
 // Run the report generation (default: last 2 weeks)
-generateReport(12);
+generateReport(2);
