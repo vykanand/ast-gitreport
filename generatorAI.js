@@ -1,85 +1,37 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-import { apiKeys } from './api_keys.js';
+const apiKeyLocal = require('./api_keys.js'); // Replace with secure API key management
 
-let currentApiKeyIndex = 0;
-
-// Get the next API key in rotation
-const getNextApiKey = () => {
-    currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length;
-    return apiKeys[currentApiKeyIndex];
-};
+const MAX_CONCURRENT_REQUESTS = 5; // Adjust based on your free tier limits
 
 // Function to send a question to Gemini AI
-const askQuestion = async (question) => {
-    let apiKey = getNextApiKey();
-    let retries = apiKeys.length; // Try each key once before failing
-
-    console.log('Starting to process the question...');
-
-    while (retries > 0) {
-        try {
-            console.log(`Using API key: ${apiKey}`);
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-            console.log('AI model initialized.');
-
-            const chat = model.startChat();
-            console.log('Chat session started.');
-
-            console.log('Sending question to AI...');
-            const result = await chat.sendMessage(question);
-            console.log('Question sent.');
-
-            console.log('Waiting for AI response...');
-            const responseText = await result.response.text();
-            console.log('Received response.');
-
-            return responseText.trim();
-        } catch (error) {
-            console.error(`Error with API key ${apiKey}: ${error.message}`);
-            retries--;
-            if (retries > 0) {
-                console.log('Retrying with next API key...');
-                apiKey = getNextApiKey(); // Rotate to next API key
-            } else {
-                throw new Error('All API keys have been tried and failed.');
-            }
-        }
+const askQuestion = async (question, apiKey) => {
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const chat = model.startChat();
+        const result = await chat.sendMessage(question);
+        const responseText = await result.response.text();
+        return responseText.trim();
+    } catch (error) {
+        console.error(`Error with API key ${apiKey}: ${error.message}`);
+        throw new Error('API request failed');
     }
 };
 
 // Function to chunk text into manageable sizes
 const chunkText = (text, chunkSize) => {
-    console.log('Chunking text...');
     const chunks = [];
     for (let i = 0; i < text.length; i += chunkSize) {
         chunks.push(text.slice(i, i + chunkSize));
     }
-    console.log('Text chunked into', chunks.length, 'chunks.');
     return chunks;
 };
 
-// Process all text chunks and combine responses
-const processChunks = async (chunks) => {
-    console.log('Processing chunks...');
-    let combinedResponse = '';
-    const totalChunks = chunks.length;
-
-    for (const [index, chunk] of chunks.entries()) {
-        console.log(`Processing chunk ${index + 1} of ${totalChunks}...`);
-        try {
-            const response = await askQuestion(chunk);
-            combinedResponse += response + ' '; // Combine responses
-
-            // Calculate and log the percentage completed
-            const percentageCompleted = ((index + 1) / totalChunks) * 100;
-            console.log(`Progress: ${percentageCompleted.toFixed(2)}% completed.`);
-        } catch (error) {
-            console.error(`Error processing chunk ${index + 1}: ${error.message}`);
-        }
-    }
-    console.log('All chunks processed.');
-    return combinedResponse.trim();
+// Process a chunk with a specific API key
+const processChunk = async (chunk) => {
+    let apiKey = apiKeyLocal[Math.floor(Math.random() * apiKeyLocal.length)];
+    const response = await askQuestion(chunk, apiKey);
+    return { response, apiKey }; // Return both the response and the API key used
 };
 
 // Main function to process HTML content
@@ -90,21 +42,47 @@ const processHtmlLLM = async (htmlContent) => {
     console.log('Converting HTML to plain text...');
     const plainText = htmlContent
         .replace(/<\/?[^>]+>/gi, '') // Strip HTML tags
-        .replace(/&nbsp;/g, ' '); // Strip HTML tags
+        .replace(/&nbsp;/g, ' '); // Replace non-breaking spaces with spaces
     console.log('HTML converted to plain text.');
 
     // Set chunk size based on known token limit
     const tokenLimit = 20000; // Example token limit
-    const chunkSize = Math.floor(tokenLimit * 0.95); // Use 95% of token limit for safety
-    console.log(`Chunking text into chunks of size ${chunkSize}...`);
+    const chunkSize = Math.floor(tokenLimit * 0.80); // Use 80% of token limit for safety
     const chunks = chunkText(plainText, chunkSize);
+    console.log(`Text chunked into ${chunks.length} chunks of size up to ${chunkSize}.`);
 
     console.log('Processing chunks...');
-    const finalResponse = await processChunks(chunks);
+    const combinedResponses = new Array(chunks.length); // Maintain order
+    const chunkPromises = [];
 
-    console.log('HTML processing completed check the results!');
+    for (let i = 0; i < chunks.length; i++) {
+        // If we've hit the max concurrent requests, wait for some to finish
+        if (chunkPromises.length >= MAX_CONCURRENT_REQUESTS) {
+            await Promise.race(chunkPromises); // Wait for any promise to resolve
+        }
+
+        const chunkIndex = i; // Keep the original index for ordering
+        console.log(`Starting processing of chunk ${chunkIndex + 1}/${chunks.length}...`);
+
+        const promise = processChunk(chunks[i])
+            .then(({ response, apiKey }) => {
+                combinedResponses[chunkIndex] = response; // Store response in correct order
+                console.log(`Chunk ${chunkIndex + 1}/${chunks.length} processed successfully with API key: ${apiKey}.`);
+            })
+            .catch(error => {
+                console.error(`Error processing chunk ${chunkIndex + 1}: ${error.message}`);
+            });
+
+        chunkPromises.push(promise);
+    }
+
+    // Wait for all remaining promises to finish
+    await Promise.all(chunkPromises);
+    console.log('All chunks processed.');
+
+    const finalResponse = combinedResponses.join(' ').trim(); // Join in original order
+    console.log('Final response assembled successfully.');
     return finalResponse;
 };
-
 
 module.exports = { processHtmlLLM };

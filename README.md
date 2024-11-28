@@ -1,3 +1,9 @@
+# ENTERPRISE AI TOOLS SUITE
+
+# TODO TASKS For this project:
+1. Multi repo Dependency analysis
+2. Multi repo file traverse
+3. Multi repo API endpoints collect and analyse
 # NodeJS GIT Utilites for Managing Dev Teams
 
 This project contains tools for analyzing and reporting on Git repositories and codebases.
@@ -5,7 +11,7 @@ This project contains tools for analyzing and reporting on Git repositories and 
 ## Project Files
 
 * **`file_traverser.js`**: This script traverses a given directory, extracts code elements (classes and functions) from supported file types (`.js`, `.ts`, `.py`, `.java`, `.kt`, `.rb`, `.go`, `.php`), builds a folder tree structure representing the directory's contents, and generates an AI prompt containing this information.  This prompt is designed to be used with a large language model (LLM) to analyze the project's architecture, design patterns, and potential best practices violations. The script then uses the LLM to provide insights and suggestions for improvement.  It requires a directory path as an argument. Example: `node file_traverser.js /path/to/directory`
-* **`generatorAI.js`**: Potentially uses Google's Generative AI API to process prompts and provide analysis.  Further details require inspecting the code.
+* **`generatorAI.js`**: Common Google's Generative AI Library for the project to process prompts and provide analysis.Further details require inspecting the code.
 * **`gitreport-multi.js`**:  Probably generates reports for multiple Git repositories.  Further details require inspecting the code.
 * **`gitreport.js`**: Generates reports for a single Git repository. Further details require inspecting the code.
 * **`hello.go`**: A simple Go program (likely for testing or demonstration). Further details require inspecting the code.

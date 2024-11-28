@@ -1,9 +1,13 @@
+// node script.js 2024-08-01 2024-11-18 - custom date range
+// node script.js 6 - for 6 months
+
 const path = require('path');
 const fs = require('fs');
 const simpleGit = require('simple-git');
 
-const folderToAnalyse = path.resolve(__dirname, '/home/niveus/development');
+const folderToAnalyse = path.resolve(__dirname, './temp-repo');
 
+// Function to list subdirectories in the base path
 async function listSubdirectories(basePath) {
     try {
         const items = fs.readdirSync(basePath);
@@ -17,6 +21,7 @@ async function listSubdirectories(basePath) {
     }
 }
 
+// Function to generate stats report for a repository
 async function generateStatsReport(repoPath, since, until) {
     const git = simpleGit(repoPath);
     const log = await git.raw(['log', '--pretty=format:%h|%ad|%an|%s', '--date=short', '--numstat', `--since=${since}`, `--until=${until}`]);
@@ -67,6 +72,7 @@ async function generateStatsReport(repoPath, since, until) {
     return report;
 }
 
+// Function to calculate the impact score based on additions and deletions
 function calculateImpactScore(additions, deletions) {
     const netChange = additions - deletions;
     const totalChange = additions + deletions;
@@ -79,10 +85,12 @@ function calculateImpactScore(additions, deletions) {
     return Math.min(Math.max((ratio + 1) * 50, 0), 100); // Score out of 100
 }
 
+// Function to calculate productivity based on additions, deletions, and commits
 function calculateProductivity(additions, deletions, commits) {
     return commits === 0 ? 0 : (additions + deletions) / commits;
 }
 
+// Function to calculate performance metrics for a given report
 function calculatePerformanceMetrics(report) {
     const metrics = {};
 
@@ -112,6 +120,7 @@ function calculatePerformanceMetrics(report) {
     return metrics;
 }
 
+// Function to get the best performers based on the ranking logic
 function getBestPerformers(metrics, topN = 5) {
     const overallMetrics = Object.entries(metrics).map(([author, data]) => {
         const combinedScore = (data.overallImpactScore + data.overallProductivity) / 2;
@@ -133,26 +142,54 @@ function getBestPerformers(metrics, topN = 5) {
         };
     });
 
-    return overallMetrics.sort((a, b) => b.combinedScore - a.combinedScore).slice(0, topN);
+    // Sort by total additions + deletions, then by combined score
+    return overallMetrics
+        .sort((a, b) => (b.totalAdditions + b.totalDeletions) - (a.totalAdditions + a.totalDeletions) || b.combinedScore - a.combinedScore)
+        .slice(0, topN);  // Return top N performers
 }
 
-function getCurrentMonthRange() {
+// Function to get the current date range or accept a custom range
+function getDateRange(monthsBack = 3) {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth(); // 0-indexed
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0); // Last day of the month
+    const start = new Date(now);
+    start.setMonth(now.getMonth() - monthsBack);
+
+    const end = new Date(now); // End date is today
+
+    const startDate = start.toISOString().split('T')[0];
+    const endDate = end.toISOString().split('T')[0];
+
     return {
-        since: start.toISOString().split('T')[0],
-        until: end.toISOString().split('T')[0],
-        monthYear: `${year}-${String(month + 1).padStart(2, '0')}` // Format as YYYY-MM
+        since: startDate,
+        until: endDate,
+        monthRange: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')} to ${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}`
     };
 }
 
+// Function to parse date range arguments from the command line
+function parseDateArguments() {
+    const args = process.argv.slice(2); // Get arguments
+    let monthsBack = 3; // Default to last 3 months
 
-async function generateHTMLReport(repoMetrics, monthYear) {
-    let html = `<html><head><title>Git Contribution Report - ${monthYear}</title></head><body>`;
-    html += `<h1>Git Contribution Report (${monthYear})</h1>`;
+    if (args.length === 2) {
+        return {
+            since: args[0],
+            until: args[1],
+            monthRange: `${args[0]} to ${args[1]}`
+        };
+    }
+
+    if (args.length === 1 && !isNaN(args[0])) {
+        monthsBack = parseInt(args[0], 10); // Allow passing months back as argument
+    }
+
+    return getDateRange(monthsBack); // Default range of 3 months
+}
+
+// Function to generate the HTML report
+async function generateHTMLReport(repoMetrics, monthRange) {
+    let html = `<html><head><title>Team Performance Report - ${monthRange}</title></head><body>`;
+    html += `<h1>Team Performance Report (${monthRange})</h1>`;
 
     for (const repo in repoMetrics) {
         html += `<h2>Project: ${repo}</h2>`; // Project name
@@ -201,7 +238,7 @@ async function generateHTMLReport(repoMetrics, monthYear) {
         </tr>`;
 
         bestPerformers.forEach(p => {
-            html += `<tr>
+            html += `<tr style="background-color: ${p.combinedScore === bestPerformers[0].combinedScore ? 'lightgreen' : 'white'}">
                 <td>${p.author}</td>
                 <td>${p.totalCommits}</td>
                 <td>${p.totalAdditions}</td>
@@ -231,10 +268,10 @@ async function generateHTMLReport(repoMetrics, monthYear) {
     console.log(`HTML report generated for all repositories at ${filePath}`);
 }
 
-
+// Main function to process the repositories and generate the report
 async function main() {
     try {
-        const { since, until, monthYear } = getCurrentMonthRange();
+        const { since, until, monthRange } = parseDateArguments();
         console.log(`Analyzing contributions from ${since} to ${until}`);
 
         const repoPaths = await listSubdirectories(folderToAnalyse);
@@ -263,7 +300,7 @@ async function main() {
 
         // Generate the report after processing all repositories
         console.log('Generating HTML report for all repositories...');
-        await generateHTMLReport(allRepoMetrics, monthYear);
+        await generateHTMLReport(allRepoMetrics, monthRange);
         
         console.log('All reports generated successfully.');
     } catch (error) {
