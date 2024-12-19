@@ -44,3 +44,5 @@ The specific usage of each script will depend on its implementation.  The follow
 A more in-depth analysis of each file's functionality will be added in a future update.  This will require a more thorough code review and testing of each script.
 
 This README will be updated with more detailed instructions as the project develops.
+
+PS - We are working on a new version of this project.

@@ -186,7 +186,7 @@ function parseDateArguments() {
 // Function to generate the HTML report
 async function generateHTMLReport(repoMetrics, monthRange) {
     let html = `<html><head><title>Team Performance Report - ${monthRange}</title></head><body>`;
-    html += `<h1>Team Performance Report (${monthRange})</h1>`;
+    html += `<h1>Team Performance Report (Current Sprint)</h1>`;
 
     for (const repo in repoMetrics) {
         html += `<h2>Project: ${repo}</h2>`; // Project name

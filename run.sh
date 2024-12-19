@@ -1,0 +1,1 @@
+node branchstats.js && node gitreport-biweekly.js
