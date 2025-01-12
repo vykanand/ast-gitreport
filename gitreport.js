@@ -3,7 +3,7 @@ const fs = require('fs');
 const { prompt } = require('enquirer');
 const simpleGit = require('simple-git');
 
-const baseFolderPath = path.resolve(__dirname, './temp-repo/');
+const baseFolderPath = path.resolve(__dirname, './analysis/');
 
 async function listSubdirectories(basePath) {
     try {

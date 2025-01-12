@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const simpleGit = require('simple-git');
 
-const folderToAnalyse = path.resolve(__dirname, './temp-repo');
+const folderToAnalyse = path.resolve(__dirname, './analysis');
 
 // Function to list subdirectories in the base path
 async function listSubdirectories(basePath) {
@@ -164,23 +164,23 @@ function getDateRange(weeksBack = 2) {
 }
 
 // Function to parse date range arguments from the command line
-function parseDateArguments() {
-    const args = process.argv.slice(2); // Get arguments
-    let weeksBack = 2; // Default to last 2 weeks
+function parseDateArguments(weekHistory = 2) {
+  const args = process.argv.slice(2); // Get arguments
+  let weeksBack = weekHistory; // Default to last 2 weeks
 
-    if (args.length === 2) {
-        return {
-            since: args[0],
-            until: args[1],
-            monthRange: `${args[0]} to ${args[1]}`
-        };
-    }
+  if (args.length === 2) {
+    return {
+      since: args[0],
+      until: args[1],
+      monthRange: `${args[0]} to ${args[1]}`,
+    };
+  }
 
-    if (args.length === 1 && !isNaN(args[0])) {
-        weeksBack = parseInt(args[0], 10); // Allow passing weeks back as argument
-    }
+  if (args.length === 1 && !isNaN(args[0])) {
+    weeksBack = parseInt(args[0], 10); // Allow passing weeks back as argument
+  }
 
-    return getDateRange(weeksBack); // Default range of 2 weeks
+  return getDateRange(weeksBack); // Default range of 2 weeks
 }
 
 // Function to generate the HTML report
@@ -266,47 +266,47 @@ async function generateHTMLReport(repoMetrics, monthRange) {
 }
 
 // Main function to process the repositories and generate the report
-async function main() {
-    try {
-        const { since, until, monthRange } = parseDateArguments();
-        console.log(`Analyzing contributions from ${since} to ${until}`);
+async function main(weeks =2) {
+  try {
+    const { since, until, monthRange } = parseDateArguments(weeks);
+    console.log(`Analyzing contributions from ${since} to ${until}`);
 
-        const repoPaths = await listSubdirectories(folderToAnalyse);
+    const repoPaths = await listSubdirectories(folderToAnalyse);
 
-        if (repoPaths.length === 0) {
-            console.log('No repositories found.');
-            return;
-        }
-
-        const allRepoMetrics = {}; // Collect metrics for all repos
-
-        for (const repo of repoPaths) {
-            const selectedRepoPath = path.join(folderToAnalyse, repo);
-            console.log(`Analyzing repository: ${repo}`);
-            const report = await generateStatsReport(selectedRepoPath, since, until);
-
-            if (Object.keys(report).length === 0) {
-                console.log(`No data found for repository: ${repo}`);
-                continue;
-            }
-
-            console.log('Calculating metrics...');
-            const metrics = calculatePerformanceMetrics(report);
-            allRepoMetrics[repo] = metrics; // Store metrics for this repo
-        }
-
-        // Generate the report after processing all repositories
-        console.log('Generating HTML report for all repositories...');
-        await generateHTMLReport(allRepoMetrics, monthRange);
-
-        console.log('All reports generated successfully.');
-    } catch (error) {
-        console.error('Error generating report:', error);
-        if (error.stack) {
-            console.error('Stack trace:', error.stack);
-        }
+    if (repoPaths.length === 0) {
+      console.log("No repositories found.");
+      return;
     }
+
+    const allRepoMetrics = {}; // Collect metrics for all repos
+
+    for (const repo of repoPaths) {
+      const selectedRepoPath = path.join(folderToAnalyse, repo);
+      console.log(`Analyzing repository: ${repo}`);
+      const report = await generateStatsReport(selectedRepoPath, since, until);
+
+      if (Object.keys(report).length === 0) {
+        console.log(`No data found for repository: ${repo}`);
+        continue;
+      }
+
+      console.log("Calculating metrics...");
+      const metrics = calculatePerformanceMetrics(report);
+      allRepoMetrics[repo] = metrics; // Store metrics for this repo
+    }
+
+    // Generate the report after processing all repositories
+    console.log("Generating HTML report for all repositories...");
+    await generateHTMLReport(allRepoMetrics, monthRange);
+
+    console.log("All reports generated successfully.");
+  } catch (error) {
+    console.error("Error generating report:", error);
+    if (error.stack) {
+      console.error("Stack trace:", error.stack);
+    }
+  }
 }
 
-main();
+main(1);
 

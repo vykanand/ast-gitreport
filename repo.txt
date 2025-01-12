@@ -1,0 +1,14 @@
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/achievements-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-bridge-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-certifications-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-common-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-performance-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-roles-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-user-roles-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan_cron_services
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/integration-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-skills-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-project-management-service
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-deal-transition-service/
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-master-service/
+https://gitlab.niveussolutions.com/niveusprojects/darpan2.0/darpan-frontend-web/

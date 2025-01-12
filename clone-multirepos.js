@@ -1,7 +1,6 @@
 const fs = require("fs");
 const simpleGit = require("simple-git");
 const path = require("path");
-const rimraf = require("rimraf").rimraf; // A package to delete non-empty directories
 
 // Hardcoded GitLab username and token for authentication
 const GITLAB_USERNAME = "vikas.anand@niveussolutions.com"; // Replace with your username
@@ -34,33 +33,8 @@ fs.readFile("repo.txt", "utf8", (err, data) => {
   // Split the file content into an array of URLs
   const repoUrls = data.split("\n").filter((url) => url.trim() !== "");
 
-  // Process each repo asynchronously and store the promises
-  const repoPromises = repoUrls.map((repoUrl) => {
-    return processRepo(repoUrl);
-  });
-
-  // Wait for all the promises to resolve before printing the final summary
-  Promise.all(repoPromises)
-    .then(() => {
-      // After all repos are processed, print the summary
-      console.log("\n--- Summary ---");
-      console.log(`Total Repositories Processed: ${repoUrls.length}`);
-      console.log(`Successfully Cloned/Updated: ${successCount}`);
-      console.log(`Failed Repositories: ${failureCount}`);
-
-      if (failureCount > 0) {
-        console.log("\nFailed Repositories URLs:");
-        failedRepos.forEach((url) => console.log(url));
-      }
-    })
-    .catch((err) => {
-      console.error("Error processing repositories:", err);
-    });
-});
-
-// Function to process each repo (clone or fetch)
-function processRepo(repoUrl) {
-  return new Promise((resolve, reject) => {
+  // Process each repo
+  repoUrls.forEach((repoUrl, index) => {
     const repoName = path.basename(repoUrl, ".git"); // Get the repo name from the URL
     const repoClonePath = path.join(OUTPUT_DIR, repoName);
 
@@ -91,20 +65,14 @@ function processRepo(repoUrl) {
           return git.checkout("master"); // Fallback to the master branch
         })
         .then(() => git.pull("origin", "development")) // Pull the latest changes from the respective branch
-        .then(async () => {
-          // Keep only the .git folder, delete all other files
-          await deleteRepoFiles(repoClonePath);
+        .then(() => {
           console.log(`Successfully updated ${repoName}`);
           successCount++;
-          console.log(`Finished processing ${repoName}`);
-          resolve();
         })
         .catch((err) => {
           console.error(`Error updating ${repoName}:`, err);
           failureCount++;
           failedRepos.push(repoUrl); // Add failed repo URL to the list
-          console.log(`Finished processing ${repoName} with error`);
-          resolve(); // Resolve the promise even on failure
         });
     } else {
       // If the repository doesn't exist, clone it
@@ -127,41 +95,25 @@ function processRepo(repoUrl) {
         })
         .then(() => git.pull("origin", "development")) // Pull the latest changes from the respective branch
         .then(() => {
-          // Keep only the .git folder, delete all other files
-          deleteRepoFiles(repoClonePath);
           console.log(`Successfully cloned and updated ${repoName}`);
           successCount++;
-          resolve();
         })
         .catch((err) => {
           console.error(`Error cloning ${repoName}:`, err);
           failureCount++;
           failedRepos.push(repoUrl); // Add failed repo URL to the list
-          resolve(); // Resolve the promise even on failure
         });
     }
   });
-}
 
-// Helper function to delete all files and folders except .git/
-// Helper function to delete all files and folders except .git/
-async function deleteRepoFiles(repoPath) {
-    const files = fs.readdirSync(repoPath);
-    
-    for (const file of files) {
-        const filePath = path.join(repoPath, file);
-        
-        // Skip the .git folder
-        if (file === '.git') continue;
-        
-        // Delete files or folders that are not .git
-        console.log(`Attempting to delete: ${filePath}`);
-        try {
-            await rimraf(filePath, { preserveRoot: true });
-            console.log(`Deleted ${filePath}`);
-        } catch (err) {
-            console.error(`Error deleting ${filePath}:`, err);
-        }
-    }
-}
+  // After processing all repositories, output the summary
+  console.log("\n--- Summary ---");
+  console.log(`Total Repositories Processed: ${repoUrls.length}`);
+  console.log(`Successfully Cloned/Updated: ${successCount}`);
+  console.log(`Failed Repositories: ${failureCount}`);
 
+  if (failureCount > 0) {
+    console.log("\nFailed Repositories URLs:");
+    failedRepos.forEach((url) => console.log(url));
+  }
+});
