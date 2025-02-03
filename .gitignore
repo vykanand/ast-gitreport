@@ -1,4 +1,5 @@
 .aider*
 /node_modules
 /temp-repo
+/analysis
 api_keys.js
