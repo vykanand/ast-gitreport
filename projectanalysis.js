@@ -11,7 +11,7 @@ const aiPrompt = buildAIPrompt(projectStructure);
 console.log(aiPrompt);
 
 async function askLLM() {
-  const combinedResponse = await processHtmlLLM(aiPrompt,'edsaas');
+  const combinedResponse = await processHtmlLLM(aiPrompt,'knegkw');
   console.log("LLM Response:\n", combinedResponse);
 }
 // Run LLM processing

@@ -47,26 +47,48 @@ const chunkText = (text, chunkSize) => {
 };
 
 // Process all text chunks and combine responses
-const processChunks = async (chunks,sessionId) => {
+const processChunks = async (chunks, sessionId, maxRetries = 3) => {
   console.log("Processing chunks...");
-  let combinedResponse = "";
+  const responses = new Array(chunks.length).fill(null);
   const totalChunks = chunks.length;
 
-  for (const [index, chunk] of chunks.entries()) {
+  for (let index = 0; index < chunks.length; index++) {
     console.log(`Processing chunk ${index + 1} of ${totalChunks}...`);
-    try {
-      const response = await askQuestion(chunk, sessionId);
-      combinedResponse += response + " ";
+    let retries = 0;
 
-      const percentageCompleted = ((index + 1) / totalChunks) * 100;
-      console.log(`Progress: ${percentageCompleted.toFixed(2)}% completed.`);
-    } catch (error) {
-      console.error(`Error processing chunk ${index + 1}: ${error.message}`);
+    while (retries < maxRetries && responses[index] === null) {
+      try {
+        const response = await askQuestion(chunks[index], sessionId);
+        responses[index] = response;
+        const percentageCompleted = ((index + 1) / totalChunks) * 100;
+        console.log(`Progress: ${percentageCompleted.toFixed(2)}% completed.`);
+        break;
+      } catch (error) {
+        retries++;
+        console.error(
+          `Error processing chunk ${
+            index + 1
+          } (Attempt ${retries}/${maxRetries}): ${error.message}`
+        );
+        if (retries === maxRetries) {
+          console.error(
+            `Failed to process chunk ${index + 1} after ${maxRetries} attempts`
+          );
+        } else {
+          console.log(`Retrying chunk ${index + 1} in 2 seconds...`);
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
     }
   }
+
   console.log("All chunks processed.");
-  return combinedResponse.trim();
+  return responses
+    .filter((r) => r !== null)
+    .join(" ")
+    .trim();
 };
+
 
 // Main function to process HTML content
 const processHtmlLLM = async (htmlContent, sessionId) => {
